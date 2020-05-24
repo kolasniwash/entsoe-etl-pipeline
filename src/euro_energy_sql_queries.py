@@ -1,5 +1,5 @@
 class EuroEnergyQueries:
-    energy_loads_table_insert = ("""
+    energy_loads_table_insert = """
     SELECT
         g.event_date,
         g.country_id,
@@ -14,9 +14,9 @@ class EuroEnergyQueries:
     LEFT JOIN staging_day_ahead_prices as p ON 
         l.ts=p.ts AND
         l.country_id=p.country_id
-    """)
+    """
 
-    installed_capacity_insert = ("""
+    installed_capacity_insert = """
     SELECT DISTINCT 
         production_type as generation_type,
         name as station_name,
@@ -27,9 +27,9 @@ class EuroEnergyQueries:
         SPLIT_PART(area_date, ' / ', 1) as control_area,
         code
     FROM staging_installed_cap
-    """)
+    """
 
-    times_table_insert = ("""
+    times_table_insert = """
     SELECT DISTINCT
         stel.event_ts,
         EXTRACT(year from stel.event_ts) as year,
@@ -43,7 +43,7 @@ class EuroEnergyQueries:
         SELECT TIMESTAMP 'epoch' + ts/1000 *INTERVAL '1 second' as event_ts
         FROM staging_energy_loads
     ) as stel
-    """)
+    """
 
     ## countries table is inserted directly from csv as own dimension task
     countries_table_insert = ()
@@ -65,18 +65,18 @@ class EuroEnergyMakeTables:
             decommissioning_date VARCHAR,
             country_id VARCHAR(3)
         );
-    """)
+    """
 
-    stage_energy_loads = ("""
+    stage_energy_loads = """
     CREATE TABLE IF NOT EXISTS staging_energy_loads (
         event_date TIMESTAMP
         total_demand FLOAT
         ts VARCHAR,
         country_id VARCHAR(3)
     )
-    """)
+    """
 
-    stage_energy_generation = ("""
+    stage_energy_generation = """
     CREATE TABLE IF NOT EXISTS staging_energy_generation (
         event_date TIMESTAMP,
         generation_type VARCHAR,
@@ -84,17 +84,17 @@ class EuroEnergyMakeTables:
         ts VARCHAR,
         country_id VARCHAR(3)
     )
-    """)
+    """
 
-    stage_day_ahead_prices = ("""
+    stage_day_ahead_prices = """
     CREATE TABLE IF NOT EXISTS staging_day_ahead_prices (
         event_date TIMESTAMP,
         day_ahead_price FLOAT,
         ts VARCHAR,
         country_id VARCHAR(2)
-    """)
+    """
 
-    create_energy_loads = ("""
+    create_energy_loads = """
     CREATE TABLE IF NOT EXISTS energy_loads (
         event_it INT IDENTITY(0,1),
         event_date TIMESTAMP NOT NULL,
@@ -104,9 +104,9 @@ class EuroEnergyMakeTables:
         demand_load FLOAT,
         generation_load FLOAT
         );
-    """)
+    """
 
-    create_times = ("""
+    create_times = """
         CREATE TABLE IF NOT EXISTS times (
             event_date TIMESTAMP PRIMARY KEY,
             year INT4,
@@ -117,19 +117,18 @@ class EuroEnergyMakeTables:
             dayofweek INT2,
             weekend BOOLEAN
         );
-    
-    """)
+    """
 
-    create_countries = ("""
+    create_countries = """
         CREATE TABLE IF NOT EXISTS countries (
             country_id VARCHAR(3) PRIMARY KEY,
             country_name VARCHAR(45),
             latitude FLOAT,
             longitude FLOAT
         );
-    """)
+    """
 
-    create_installed_capacity = ("""
+    create_installed_capacity = """
         CREATE TABLE IF NOT EXISTS installed_capacity (
             generation_type VARCHAR,
             station_name VARCHAR,
@@ -140,4 +139,4 @@ class EuroEnergyMakeTables:
             control_area VARCHAR(6),
             code VARCHAR(32)
         );
-    """)
+    """
