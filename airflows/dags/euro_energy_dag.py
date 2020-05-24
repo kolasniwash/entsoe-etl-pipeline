@@ -80,6 +80,16 @@ stage_generation_to_redshift = StageToRedshiftOperator(
     s3_bucket="s3://euro-energy-data/generation"
 )
 
+## countries csv is already unique. No need to stage. Load directly.
+create_load_countries_table = StageToRedshiftOperator(
+    task_id='load_countries_table',
+    dag=dag,
+    table='load_countries_table',
+    redshift_conn_id='redshift',
+    aws_credentials_id='aws_credentials',
+    s3_bucket='s3://euro-energy-data/countries'
+)
+
 load_energy_loads_table = LoadFactOperator(
     task_id='load_energy_loads_table',
     dag=dag,
