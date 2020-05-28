@@ -35,6 +35,14 @@ A star schema was chosen to model the data. This allows fast easy queries on the
     - Navigate to ```http://localhost:8080/```
 3. Before launching the DAG setup a redshift instance with S3 and public connection access. Add your AWS credentials and redshift host as connections in airflow. [See this link for more detials.](https://github.com/san089/goodreads_etl_pipeline/blob/master/docs/Airflow_Connections.md) 
 
+## ETL workflow
+1. Data is processed locally and uploaded to S3. This works for small volumes of data, but for larger situations could be moved to an EMR instance.
+2. From S3 data is staged in redshift
+3. Quality checks run and ensure no missing values
+4. Facts table is upserted from staged tables.
+5. Quality check on facts table checks for minimum number of rows inserted
+6. Dimension tables are upserted from staging.
+
 ## Scenarios for Scaling Up the Project
 The current project builds the data warehouse using 2019 data from a local machine and manually downloaded CSVs. In scaling the project to a higher frequency it could be adapted to run at monthly, or daily frequency. Several steps would be needed to do this. First, would be to automate calls to the ENTSOE API. Second, store the raw data in an S3 bucket, and run processing to clean the data and store it in a separate bucket with all processed files. Third, rewrite the processing scripts in pyspark and host the job on a EMR cluster. Finally, host the local airflows instance with AWS cloud formation so it can run independently from the local machine. In the diagram below we see a diagram of how this architecture would look like.
 
