@@ -7,5 +7,5 @@ __all__ = [
     'StageCSVToRedshiftOperator',
     'LoadFactOperator',
     'LoadDimensionOperator',
-    'DataQualityOperator',
+    'DataQualityOperator'
 ]
