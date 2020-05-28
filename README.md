@@ -10,11 +10,6 @@ This project uses Apache Airflow to build an energy data warehouse in AWS redshi
 ## Accessing the data
 All data in this project is available publicly though the [ENTSOE Transparency portal](https://transparency.entsoe.eu/). It can be accessed by API or through downloadable CSVs. A sample of raw and processed data is available in the ```data/``` folder.
 
-### Data from API
-Datasets for installed capacity and total demand were downloaded from the 
-
-### Data downoaded from ENTSOE
-
 ### Data Cleaning and Preparation
 A description of the data cleaning steps and the functions developed is found in ```notebooks/data-cleaning-functions```.
 
