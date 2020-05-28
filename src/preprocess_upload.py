@@ -66,6 +66,53 @@ def process_capacity_demand(country_paths, output_path, name, new_cols=None):
                       index=False, header=False)
             print(f'Saved: {country}')
 
+def process_total_demand(country_paths, output_path):
+    """
+     Prepares the total demand csvs from the ENTOSE database for the data warehouse.
+
+     Input:
+         country_paths: dict. dict. country and path to csvs with total generation data
+         output_path: str. path to save
+     """
+
+
+    for country, path_in_strs in country_paths.items():
+        for path_in_str in path_in_strs:
+            # load dataframe
+            df = pd.read_csv(path_in_str)
+
+            # add country name
+            df['country_id'] = country
+
+            ## clean column headers
+            df.columns = [x[0].strip().lower() for x in df.columns.str.split(" ")]
+            df = df.drop('day-ahead', axis=1)
+            df.rename(columns={'actual': 'total_demand'}, inplace=True)
+
+            df['event_date'] = df['time'].apply(lambda x: pd.to_datetime(x.split("-")[0]))
+            df = df.drop('time', axis=1)
+            df = df.set_index('event_date')
+            df.index = df.index.tz_localize(tz='Europe/Brussels',
+                                            ambiguous='infer',
+                                            nonexistent='shift_backward')
+
+            df['ts'] = df.index.asi8
+            df.index = df.index.strftime("%Y%m%d %H%M%S")
+            df.fillna(0, inplace=True)
+
+            # get date ranges
+            start = df.index[0].split(" ")[0]
+            end = df.index[-1].split(" ")[0]
+
+            # save dataframe
+            df = df.reset_index()
+
+            # save dataframe
+            df.to_csv(os.path.join(output_path, f'demand-{country}-{start}-{end}.csv'),
+                      index=False, header=False)
+            print(f'Saved: {country}')
+
+
 def process_total_generation(country_paths, output_path):
     """
     Prepares the total generation csvs from the ENTOSE database for the data warehouse.
@@ -174,8 +221,17 @@ def process_day_ahead_prices(country_paths, output_path):
 
 
 def upload_data(path, bucketname):
+
+    client = boto3.client(
+        's3',
+        aws_access_key_id=os.environ['AWS_USER'],
+        aws_secret_access_key=os.environ['AWS_KEY'])
+    s3c = boto3.client('s3')
+    s3 = boto3.resource('s3')
+
     for root, dirs, files in os.walk(path):
-        head = ('/').join(root.split('/')[7:])
+
+        head = ('/').join(root.split('/')[-1:])
 
         objs = list(s3.Bucket(bucketname).objects.filter(Prefix=head))
 
@@ -197,73 +253,63 @@ def upload_data(path, bucketname):
                 print(f'{head}/{file}')
                 s3c.upload_file(os.path.join(root, file), bucketname, f'{head}/{file}')
 
-    upload_data(path, bucketname)
-
-
-
-
 
 def process_data():
 
     root_path = './data/raw'
     output_path = './data/processed/{}'
 
-    bucketname = 'energy-etl-processed'
+    processed_path = './data/processed'
+    bucket = 'energy-etl-processed'
 
-    client = boto3.client(
-        's3',
-        aws_access_key_id=os.environ['AWS_USER'],
-        aws_secret_access_key=os.environ['AWS_KEY']
-    )
-    s3c = boto3.client('s3')
-    s3 = boto3.resource('s3')
+    # print('Preprocessing total demand')
+    # logging.info('Preprocessing total demand')
+    # country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
+    #
+    # new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
+    #
+    # process_capacity_demand(country_paths,
+    #                         output_path.format('total_demand'),
+    #                         'demand',
+    #                         new_total_demand_cols)
+    # logging.info('Processing OK: Total demand')
+    #
+    # print('Preprocessing installed capacity')
+    # logging.info('Preprocessing installed capacity')
+    # country_paths = traverse_path(os.path.join(root_path, 'installed_capacity'), -2)
+    #
+    # new_install_capacity_cols = ['event_date', 'production_type', 'code',
+    #                              'name', 'installed_capacity_year_start',
+    #                              'current_installed_capacity', 'location',
+    #                              'voltage_connection_level', 'commissioning_date',
+    #                              'decommissioning_date', 'country_id']
+    #
+    # process_capacity_demand(country_paths,
+    #                         output_path.format('installed_capacity'),
+    #                         'capacity',
+    #                         new_install_capacity_cols)
+    # logging.info('Processing OK: Installed Capacity')
+    #
+    # print('Preprocessing total generation')
+    # logging.info('Preprocessing total generation')
+    # country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
+    #
+    # process_total_generation(country_paths, output_path.format('total_generation'))
+    # logging.info('Processing OK: Total Generation')
+    #
+    # print('Preprocessing day ahead prices')
+    # logging.info('Preprocessing day ahead prices')
+    # country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
+    #
+    # process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
+    # logging.info('Processing OK: Day Ahead Prices')
+    #
+    print(f'Uploading to S3 bucket {bucket}')
+    logging.info(f'Uploading to S3 bucket {bucket}')
 
-
-
-    print('Preprocessing total demand')
-    logging.info('Preprocessing total demand')
-    country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
-
-    new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
-
-    process_capacity_demand(country_paths,
-                            output_path.format('total_demand'),
-                            'demand',
-                            new_total_demand_cols)
-    logging.info('Processing OK: Total demand')
-
-    print('Preprocessing installed capacity')
-    logging.info('Preprocessing installed capacity')
-    country_paths = traverse_path(os.path.join(root_path, 'installed_capacity'), -3)
-
-    new_install_capacity_cols = ['event_date', 'production_type', 'code',
-                                 'name', 'installed_capacity_year_start',
-                                 'current_installed_capacity', 'location',
-                                 'voltage_connection_level', 'commissioning_date',
-                                 'decommissioning_date', 'country_id']
-
-    process_capacity_demand(country_paths,
-                            output_path.format('installed_capacity'),
-                            'capacity',
-                            new_install_capacity_cols)
-    logging.info('Processing OK: Installed Capacity')
-
-    print('Preprocessing total generation')
-    logging.info('Preprocessing total generation')
-    country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
-
-    process_total_generation(country_paths, output_path.format('total_generation'))
-    logging.info('Processing OK: Total Generation')
-
-    print('Preprocessing day ahead prices')
-    logging.info('Preprocessing day ahead prices')
-    country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
-
-    process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
-    logging.info('Processing OK: Day Ahead Prices')
-
-    upload_data(output_path, bucketname)
+    upload_data(processed_path, bucket)
 
 
 if __name__ == '__main__':
+
     process_data()
