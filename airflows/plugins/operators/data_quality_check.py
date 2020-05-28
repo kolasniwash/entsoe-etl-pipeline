@@ -30,8 +30,10 @@ class DataQualityOperator(BaseOperator):
         for check in self.sql_data_checks:
             sql = check.get('check_sql')
             exp_result = check.get('expected_result')
+            error_count = 0
+            failing_tests = list()
 
-            records = redshift.get_records(sql)[0]
+            records = redshift_hook.get_records(sql)[0]
 
             if exp_result != records[0]:
                 error_count += 1
