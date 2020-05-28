@@ -4,15 +4,16 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class StageToRedshiftOperator(BaseOperator):
+class StageCSVToRedshiftOperator(BaseOperator):
     ui_color = '#358140'
 
     COPY_SQL = """
             COPY {}
             FROM '{}'
-            ACCESS_KEY_ID '{{}}'
-            SECRET_ACCESS_KEY '{{}}'
-            CSV 'auto'
+            ACCESS_KEY_ID '{}'
+            SECRET_ACCESS_KEY '{}'
+            FORMAT AS CSV
+            DATEFORMAT 'auto'
             REGION 'us-west-2'
             """
 
@@ -26,24 +27,30 @@ class StageToRedshiftOperator(BaseOperator):
                  s3_bucket="",
                  s3_key="",
                  aws_credentials_id="",
+                 create_table_sql=None,
                  *args, **kwargs):
-        super(StageToRedshiftOperator, self).__init__(*args, **kwargs)
-        # Map params here
-        # Example:
-        # self.conn_id = conn_id
+        super(StageCSVToRedshiftOperator, self).__init__(*args, **kwargs)
+
         self.table = table
+        self.create_table_sql = create_table_sql
         self.redshift_conn_id = redshift_conn_id
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.aws_credentials_id = aws_credentials_id
 
     def execute(self, context):
-        self.log.info('StageToRedshiftOperator starting...')
+        self.log.info('StageCSVToRedshiftOperator starting...')
 
         aws_hook = AwsHook(self.aws_credentials_id)
         credentials = aws_hook.get_credentials()
         redshift_hook = PostgresHook(self.redshift_conn_id)
-        sql_stmt = StageToRedshiftOperator.COPY_SQL.format(
+
+        if self.create_table_sql is not None:
+            #drop table
+            redshift_hook.run(f"DROP TABLE IF EXISTS {self.table}")
+            redshift_hook.run(self.create_table_sql)
+
+        sql_stmt = StageCSVToRedshiftOperator.COPY_SQL.format(
             self.table,
             self.s3_bucket,
             credentials.access_key,
