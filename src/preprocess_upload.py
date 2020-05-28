@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 import datetime
 import logging
-
+import boto3
 
 def traverse_path(path, split_idx):
     """
@@ -173,22 +173,64 @@ def process_day_ahead_prices(country_paths, output_path):
 
 
 
+def upload_data(path, bucketname):
+    for root, dirs, files in os.walk(path):
+        head = ('/').join(root.split('/')[7:])
+
+        objs = list(s3.Bucket(bucketname).objects.filter(Prefix=head))
+
+        # skip enmpty head path
+        if len(head) == 0:
+            continue
+
+        if len(objs) > 0:
+            aws_head = ('/').join(objs[0].key.split('/')[:2])
+            if aws_head != head:
+                s3c.put_object(Bucket=bucketname, Key=(head + '/'))
+                print(f'New directory: {head}')
+        elif len(objs) == 0:
+            s3c.put_object(Bucket=bucketname, Key=(head + '/'))
+            print(f'New directory: {head}')
+
+        for file in files:
+            if file != '.DS_Store':
+                print(f'{head}/{file}')
+                s3c.upload_file(os.path.join(root, file), bucketname, f'{head}/{file}')
+
+    upload_data(path, bucketname)
+
+
+
+
+
 def process_data():
 
     root_path = './data/raw'
     output_path = './data/processed/{}'
 
-    # print('Preprocessing total demand')
-    # logging.info('Preprocessing total demand')
-    # country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
-    #
-    # new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
-    #
-    # process_capacity_demand(country_paths,
-    #                         output_path.format('total_demand'),
-    #                         'demand',
-    #                         new_total_demand_cols)
-    # logging.info('Processing OK: Total demand')
+    bucketname = 'energy-etl-processed'
+
+    client = boto3.client(
+        's3',
+        aws_access_key_id=os.environ['AWS_USER'],
+        aws_secret_access_key=os.environ['AWS_KEY']
+    )
+    s3c = boto3.client('s3')
+    s3 = boto3.resource('s3')
+
+
+
+    print('Preprocessing total demand')
+    logging.info('Preprocessing total demand')
+    country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
+
+    new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
+
+    process_capacity_demand(country_paths,
+                            output_path.format('total_demand'),
+                            'demand',
+                            new_total_demand_cols)
+    logging.info('Processing OK: Total demand')
 
     print('Preprocessing installed capacity')
     logging.info('Preprocessing installed capacity')
@@ -206,19 +248,21 @@ def process_data():
                             new_install_capacity_cols)
     logging.info('Processing OK: Installed Capacity')
 
-    # print('Preprocessing total generation')
-    # logging.info('Preprocessing total generation')
-    # country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
-    #
-    # process_total_generation(country_paths, output_path.format('total_generation'))
-    # logging.info('Processing OK: Total Generation')
+    print('Preprocessing total generation')
+    logging.info('Preprocessing total generation')
+    country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
 
-    # print('Preprocessing day ahead prices')
-    # logging.info('Preprocessing day ahead prices')
-    # country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
-    #
-    # process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
-    # logging.info('Processing OK: Day Ahead Prices')
+    process_total_generation(country_paths, output_path.format('total_generation'))
+    logging.info('Processing OK: Total Generation')
+
+    print('Preprocessing day ahead prices')
+    logging.info('Preprocessing day ahead prices')
+    country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
+
+    process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
+    logging.info('Processing OK: Day Ahead Prices')
+
+    upload_data(output_path, bucketname)
 
 
 if __name__ == '__main__':
