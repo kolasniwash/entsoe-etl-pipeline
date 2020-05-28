@@ -1,109 +1,122 @@
 from datetime import datetime, timedelta
-import os
 from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
-                               LoadDimensionOperator, DataQualityOperator,
-                               PostgresOperator)
+from airflow.operators import (StageCSVToRedshiftOperator, LoadFactOperator,
+                               LoadDimensionOperator, DataQualityOperator)
 
-# from helpers import EuroEnergyQueries
-
-
-## MVP Dag outline:
-## Copy data from S3 into staging tables
-##  - SQL queries file
-##  - Use stage to redshift operator
-## Upsert data from Staging into Data Warehouse
-##  - SQL queries file
-##  - Use load dimension operator
-##  - Use data quality operator
-## Run data checks
-##  - Data quality operator
-
-
-## MVP V2 Dag outline
-## Copy data from S3 working > clean with Spark & EMR cluster > Save in S3 processed zone
-##  - Spark cleaning py file
-##  - helper functions to get and upload to S3
-## Copy data from S3 Processed zone into staging tables
-##  - SQL queries file
-##  - Use stage to redshift operator
-## Upsert data from Staging into Data Warehouse
-##  - SQL queries file
-##  - Use load dimension operator
-##  - Use data quality operator
-## Run data checks
-##  - Data quality operator
-
+from helpers import EuroEnergyQueries
 
 default_args = {
     'owner': 'nicholas',
-    'start_date': datetime.now(),  # datetime(2020, 5, 21, 3, 0, 0, 0),
+    'start_date': datetime(2020, 5, 27, 0,0,0),
     'depends_on_past': True,
     'retries': 3,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=1),
     'email_on_retry': False
 }
 
 dag = DAG('euro-energy-etl',
           default_args=default_args,
           description='Builds a redshift data warehouse from s3.',
-          schedule_interval='0 3 * * *'
+          schedule_interval='0 5 * * *'
           )
 
 start_operator = DummyOperator(task_id='Begin_execution', dag=dag)
 
-stage_demand_to_redshift = StageToRedshiftOperator(
-    task_id='stage_energy_demands',
+
+stage_demand_to_redshift = StageCSVToRedshiftOperator(
+    task_id='stage_energy_loads',
     dag=dag,
-    table='stage_energy_demands',
+    table='staging_energy_loads',
+    create_table_sql=EuroEnergyQueries.stage_energy_loads,
     redshift_conn_id='redshift',
     aws_credentials_id="aws_credentials",
-    s3_bucket='s3://euro-energy-data/total_demand'
+    s3_bucket='s3://energy-etl-processed/total_demand'
 )
 
-stage_installed_capacity_to_redshift = StageToRedshiftOperator(
-    task_id='stage_intalled_capacity',
+stage_installed_capacity_to_redshift = StageCSVToRedshiftOperator(
+    task_id='stage_installed_capacity',
     dag=dag,
-    table="stage_intalled_capacity",
+    table="staging_installed_cap",
+    create_table_sql=EuroEnergyQueries.stage_installed_capacity,
     redshift_conn_id="redshift",
     aws_credentials_id="aws_credentials",
-    s3_bucket="s3://euro-energy-data/installed_capacity"
+    s3_bucket="s3://energy-etl-processed/installed_capacity"
 )
 
-stage_generation_to_redshift = StageToRedshiftOperator(
+stage_generation_to_redshift = StageCSVToRedshiftOperator(
     task_id='stage_generation',
     dag=dag,
-    table="stage_generation",
+    table="staging_energy_generation",
+    create_table_sql=EuroEnergyQueries.stage_energy_generation,
     redshift_conn_id="redshift",
     aws_credentials_id="aws_credentials",
-    s3_bucket="s3://euro-energy-data/generation"
+    s3_bucket="s3://energy-etl-processed/total_generation"
 )
 
-## countries csv is already unique. No need to stage. Load directly.
-create_load_countries_table = StageToRedshiftOperator(
+stage_day_ahead_prices_to_redshift = StageCSVToRedshiftOperator(
+    task_id='staging_day_ahead_prices',
+    dag=dag,
+    table="staging_day_ahead_prices",
+    create_table_sql=EuroEnergyQueries.stage_day_ahead_prices,
+    redshift_conn_id="redshift",
+    aws_credentials_id="aws_credentials",
+    s3_bucket="s3://energy-etl-processed/day_ahead_prices"
+)
+
+stage_quality_checks = DataQualityOperator(
+    task_id='stage_quality_checks',
+    dag=dag,
+    redshift_conn_id='redshift',
+    sql_data_checks=[
+        {"check_sql": "SELECT count(*) FROM staging_day_ahead_prices WHERE event_date is NULL",
+         "expected_result": 0},
+        {"check_sql": "SELECT count(*) FROM staging_energy_generation WHERE event_date is NULL",
+         "expected_result": 0},
+        {"check_sql": "SELECT count(*) FROM staging_installed_cap WHERE area_date is NULL",
+         "expected_result": 0},
+        {"check_sql": "SELECT count(*) FROM staging_energy_loads WHERE event_date is NULL",
+         "expected_result": 0}
+    ]
+)
+
+## countries csv is already unique. No need to load after stage.
+create_load_countries_table = StageCSVToRedshiftOperator(
     task_id='load_countries_table',
     dag=dag,
-    table='load_countries_table',
+    table='countries',
+    create_table_sql=EuroEnergyQueries.create_countries,
     redshift_conn_id='redshift',
     aws_credentials_id='aws_credentials',
-    s3_bucket='s3://euro-energy-data/countries'
+    s3_bucket='s3://energy-etl-processed/countries'
 )
 
 load_energy_loads_table = LoadFactOperator(
     task_id='load_energy_loads_table',
     dag=dag,
     table_id='energy_loads',
+    create_table_sql=EuroEnergyQueries.create_energy_loads,
     redshift_conn_id='redshift',
-    sql_select=None  # EuroEnergyQueries.energy_loads_table_insert
+    sql_select=EuroEnergyQueries.energy_loads_table_insert
 )
 
-load_generation_table = LoadDimensionOperator(
-    task_id='load_generation_table',
+fact_table_size_check = DataQualityOperator(
+    task_id='fact_table_size_check',
     dag=dag,
-    table_id='generation',
     redshift_conn_id='redshift',
-    sql=None  # EuroEnergyQueries.generation_table_insert
+    sql_data_checks=[
+        {"check_sql": """SELECT CASE WHEN count(*)>1000000 THEN true ELSE false END FROM energy_loads""",
+         "expected_result": 'true'}
+    ]
+)
+
+load_installed_capacity_table = LoadDimensionOperator(
+    task_id='load_installed_generation',
+    dag=dag,
+    table_id='installed_capacity',
+    redshift_conn_id='redshift',
+    sql_select=EuroEnergyQueries.installed_capacity_insert
 )
 
 load_times_table = LoadDimensionOperator(
@@ -111,39 +124,18 @@ load_times_table = LoadDimensionOperator(
     dag=dag,
     table_id='times',
     redshift_conn_id='redshift',
-    sql=None  # EuroEnergyQueries.times_table_insert
-)
-
-load_countries_table = LoadDimensionOperator(
-    task_id='load_countries_table',
-    dag=dag,
-    table_id='countries',
-    redshift_conn_id='redshift',
-    sql=None  # EuroEnergyQueries.countries_table_insert
-)
-
-run_quality_checks = DataQualityOperator(
-    task_id='Run_data_quality_checks',
-    dag=dag,
-    sql_data_checks=[
-        {"check_sql": "SELECT count(user_id) FROM users WHERE user_id is NULL",
-         "expected_result": 0},
-        {"check_sql": "SELECT count(artist_id) FROM artists WHERE artist_id is NULL",
-         "expected_result": 0},
-        {"check_sql": "SELECT count(song_id) FROM songs WHERE song_id is NULL",
-         "expected_result": 0},
-    ]
+    sql_select=EuroEnergyQueries.times_table_insert
 )
 
 end_operator = DummyOperator(task_id='Stop_execution', dag=dag)
 
+
 start_operator >> [stage_demand_to_redshift,
                    stage_installed_capacity_to_redshift,
-                   stage_generation_to_redshift] >> load_energy_loads_table
+                   stage_generation_to_redshift,
+                   stage_day_ahead_prices_to_redshift] >> stage_quality_checks
 
-load_energy_loads_table >> [load_generation_table,
-                            load_times_table,
-                            load_countries_table] >> run_quality_checks
+stage_quality_checks >> load_energy_loads_table >> fact_table_size_check
 
-run_quality_checks >> end_operator
-
+fact_table_size_check >> [load_installed_capacity_table,
+                            load_times_table] >> end_operator
