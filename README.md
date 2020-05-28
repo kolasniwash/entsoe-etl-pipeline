@@ -8,23 +8,25 @@ European Energy Data Warehouse is a simple ETL that combines data on day ahead p
 This project uses Apache Airflow to build an energy data warehouse in AWS redshift. Data is processed locally and uploaded to s3 with the scripts in ```src/```. Apache airflow can then be launched (setup instructions below) along side a redshift cluster to build the data warehouse.
 
 ## Accessing the data
-All data in this project is available publicly though the ENTSOE Transparency portal. It can be accessed by API or through downloadable CSVs. A sample of raw and processed data is available in the ```data/``` folder.
+All data in this project is available publicly though the [ENTSOE Transparency portal](https://transparency.entsoe.eu/). It can be accessed by API or through downloadable CSVs. A sample of raw and processed data is available in the ```data/``` folder.
 
-## Data Model
+### Data Cleaning and Preparation
+A description of the data cleaning steps and the functions developed is found in ```notebooks/data-cleaning-functions```.
 
-### Architecture
+## Architecture
 The current implementation runs the data cleaning and airflows task scheduler in a local environment and connects to AWS redshift to stage and create the warehouse. The diagram below describes the local architecture.
 <img src="img/local-schema-architecture.png" align="middle">
 
-Spark could be used with the project to clean and process the raw data in preparation for staging. Airflows is already used as a task manager in the project but like spark could be adapted for use in the cloud. To move to the cloud, airflows could be hosted on cloud formation, and spakr deployed within an EMR cluster. See below in the section on scaling up the project for more details on how this could be done.
+Spark could be used with the project to clean and process the raw data in preparation for staging. Airflows is already used as a task manager in the project but like spark could be adapted for use in the cloud. To move to the cloud, airflows could be hosted on cloud formation, and spakr deployed within an EMR cluster. See below in the section on scaling up the project for more details on how this could be done. A diagram of teh DAG used in this project is below.
+<img src="img/final-dag.png" align="middle">
 
-### Schema
+## Schema
 A star schema was chosen to model the data. This allows fast easy queries on the facts table. In this case the energy_loads table contains data on day ahead prices, total energy demand, and energy generation by production type. The dimension tables provide additional information on country location, times, and installed capacity by country and production type. This structure allows queries that combine supply, generation, and price all together.
 
 <img src="img/db-schema.png" align="middle">
 
 ## Setup: How to run the ETL
-1. Download datasets from ENTSOE in CSV format placing them in the ```data/``` folder and running ```python3 src/process_upload.py```. You will need to set your AWS credentials in your environment variables. This will clean, process, and upload the files to be staged in redshift to S3.
+1. Download datasets from ENTSOE in CSV format placing them in the ```data/``` folder and running ```python3 src/process_upload.py```. You will need to set your AWS credentials in your environment variables. This will clean, process, and upload the files to be staged in redshift to S3. The countries CSV can be found in ```data/```
 2. Build the docker image for Apache Airflow by running the following in your project root.
     - Build the image ```docker build -t puckel/docker-airflow .```
     - Generate the FERNET_KEY ```docker run puckel/docker-airflow python -c "from cryptography.fernet import Fernet; FERNET_KEY = Fernet.generate_key().decode(); print(FERNET_KEY)"```
