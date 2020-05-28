@@ -262,48 +262,48 @@ def process_data():
     processed_path = './data/processed'
     bucket = 'energy-etl-processed'
 
-    # print('Preprocessing total demand')
-    # logging.info('Preprocessing total demand')
-    # country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
-    #
-    # new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
-    #
-    # process_capacity_demand(country_paths,
-    #                         output_path.format('total_demand'),
-    #                         'demand',
-    #                         new_total_demand_cols)
-    # logging.info('Processing OK: Total demand')
-    #
-    # print('Preprocessing installed capacity')
-    # logging.info('Preprocessing installed capacity')
-    # country_paths = traverse_path(os.path.join(root_path, 'installed_capacity'), -2)
-    #
-    # new_install_capacity_cols = ['event_date', 'production_type', 'code',
-    #                              'name', 'installed_capacity_year_start',
-    #                              'current_installed_capacity', 'location',
-    #                              'voltage_connection_level', 'commissioning_date',
-    #                              'decommissioning_date', 'country_id']
-    #
-    # process_capacity_demand(country_paths,
-    #                         output_path.format('installed_capacity'),
-    #                         'capacity',
-    #                         new_install_capacity_cols)
-    # logging.info('Processing OK: Installed Capacity')
-    #
-    # print('Preprocessing total generation')
-    # logging.info('Preprocessing total generation')
-    # country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
-    #
-    # process_total_generation(country_paths, output_path.format('total_generation'))
-    # logging.info('Processing OK: Total Generation')
-    #
-    # print('Preprocessing day ahead prices')
-    # logging.info('Preprocessing day ahead prices')
-    # country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
-    #
-    # process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
-    # logging.info('Processing OK: Day Ahead Prices')
-    #
+    print('Preprocessing total demand')
+    logging.info('Preprocessing total demand')
+    country_paths = traverse_path(os.path.join(root_path, 'total_demand'), -2)
+
+    new_total_demand_cols = ['event_date', 'total_demand', 'ts', 'country_id']
+
+    process_capacity_demand(country_paths,
+                            output_path.format('total_demand'),
+                            'demand',
+                            new_total_demand_cols)
+    logging.info('Processing OK: Total demand')
+
+    print('Preprocessing installed capacity')
+    logging.info('Preprocessing installed capacity')
+    country_paths = traverse_path(os.path.join(root_path, 'installed_capacity'), -2)
+
+    new_install_capacity_cols = ['event_date', 'production_type', 'code',
+                                 'name', 'installed_capacity_year_start',
+                                 'current_installed_capacity', 'location',
+                                 'voltage_connection_level', 'commissioning_date',
+                                 'decommissioning_date', 'country_id']
+
+    process_capacity_demand(country_paths,
+                            output_path.format('installed_capacity'),
+                            'capacity',
+                            new_install_capacity_cols)
+    logging.info('Processing OK: Installed Capacity')
+
+    print('Preprocessing total generation')
+    logging.info('Preprocessing total generation')
+    country_paths = traverse_path(os.path.join(root_path, 'total_generation'), -2)
+
+    process_total_generation(country_paths, output_path.format('total_generation'))
+    logging.info('Processing OK: Total Generation')
+
+    print('Preprocessing day ahead prices')
+    logging.info('Preprocessing day ahead prices')
+    country_paths = traverse_path(os.path.join(root_path, 'day_ahead_prices'), -2)
+
+    process_day_ahead_prices(country_paths, output_path.format('day_ahead_prices'))
+    logging.info('Processing OK: Day Ahead Prices')
+
     print(f'Uploading to S3 bucket {bucket}')
     logging.info(f'Uploading to S3 bucket {bucket}')
 
