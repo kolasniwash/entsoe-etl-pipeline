@@ -130,7 +130,8 @@ load_times_table = LoadDimensionOperator(
 end_operator = DummyOperator(task_id='Stop_execution', dag=dag)
 
 
-start_operator >> [stage_demand_to_redshift,
+start_operator >> [create_load_countries_table,
+                   stage_demand_to_redshift,
                    stage_installed_capacity_to_redshift,
                    stage_generation_to_redshift,
                    stage_day_ahead_prices_to_redshift] >> stage_quality_checks
