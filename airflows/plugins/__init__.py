@@ -6,7 +6,7 @@ import operators
 import helpers
 
 # Defining the plugin class
-class EntsoeETLPlugins(AirflowPlugin):
+class EntsoeETLPlugin(AirflowPlugin):
     name = "entsoe_etl_plugins"
     operators = [
         operators.StageCSVToRedshiftOperator,
@@ -15,5 +15,5 @@ class EntsoeETLPlugins(AirflowPlugin):
         operators.DataQualityOperator
     ]
     helpers = [
-        helpers.euro_energy_sql_queries.py
+        helpers.EuroEnergyQueries
     ]
