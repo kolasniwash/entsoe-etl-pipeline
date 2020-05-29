@@ -44,19 +44,6 @@ class EuroEnergyQueries:
         FROM staging_energy_loads
     ) as stel
     """
-    #
-    # FROM(
-    #     SELECT
-    #         TIMESTAMP 'epoch' + ts / 1000 * interval '1 second' AS start_time,
-    #         *
-    #     FROM staging_events
-    #     WHERE page = 'NextSong') as events
-    #
-
-
-    ## countries table is inserted directly from csv as own dimension task
-    countries_table_insert = ()
-
 
     stage_installed_capacity = """
         CREATE TABLE IF NOT EXISTS staging_installed_cap (
@@ -123,8 +110,7 @@ class EuroEnergyQueries:
             day INT2,
             hour INT2,
             minute INT2,
-            dayofweek INT2,
-            weekend BOOLEAN
+            dayofweek INT2
         );
     """
 
