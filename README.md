@@ -10,9 +10,6 @@ This project uses Apache Airflow to build an energy data warehouse in AWS redshi
 ## Accessing the data
 All data in this project is available publicly though the [ENTSOE Transparency portal](https://transparency.entsoe.eu/). It can be accessed by API or through downloadable CSVs. A sample of raw and processed data is available in the ```data/``` folder.
 
-### Data Cleaning and Preparation
-A description of the data cleaning steps and the functions developed is found in ```notebooks/data-cleaning-functions```.
-
 ## Architecture
 The current implementation runs the data cleaning and airflows task scheduler in a local environment and connects to AWS redshift to stage and create the warehouse. The diagram below describes the local architecture.
 <img src="img/local-schema-architecture.png" align="middle">
